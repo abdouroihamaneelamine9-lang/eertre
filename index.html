@@ -1,0 +1,188 @@
+```html
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sport</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f4f4f4">
+
+<style>
+body { font-family: Arial; margin:0; background:#f4f4f4; }
+.container { max-width:900px; margin:auto; padding:20px; }
+.score { font-size:18px; font-weight:bold; margin-bottom:10px; padding:10px; background:#fff; border-radius:8px; }
+.title { text-align:center; font-size:22px; font-weight:bold; margin-bottom:10px; }
+.btn { padding:8px 12px; border:1px solid #ddd; border-radius:6px; cursor:pointer; background:#f7f7f7; }
+.card { background:white; border-radius:10px; padding:15px; margin-bottom:15px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+.time { font-weight:bold; display:flex; justify-content:space-between; margin-bottom:10px; gap:10px; }
+.status-row { display:flex; gap:10px; margin-bottom:10px; }
+.status-box { flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; background:#fff; display:flex; justify-content:space-between; }
+.notes { margin-top:12px; padding-top:10px; border-top:1px solid #eee; }
+.note-item { display:flex; justify-content:space-between; padding:6px; margin-bottom:5px; background:#fafafa; border-radius:6px; font-size:13px; }
+.note-item button { border:none; background:#333; color:#fff; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:11px; }
+.note-input { display:flex; gap:6px; margin-top:8px; }
+.note-input input { flex:1; padding:6px; border:1px solid #ddd; border-radius:6px; }
+.note-input button { padding:6px 10px; border:1px solid #ddd; background:#eee; border-radius:6px; cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+<div class="title">Sport</div>
+<div id="score" class="score"></div>
+
+<button class="btn" onclick="resetWeekEmojis()">Effacer emoji</button>
+<button class="btn" onclick="resetAll()">Réinitialiser tout</button>
+
+<div id="blocks"></div>
+</div>
+
+<script>
+
+const BLOCKS = [
+"05:00–09:00",
+"13:00–15:40",
+"15:40–18:20",
+"18:20–19:50",
+"19:50–23:00"
+];
+
+const STATE_KEY="routine_state";
+const EMOJI_KEY="routine_emojis";
+const SCORE_KEY="routine_score";
+const NOTES_KEY="routine_notes";
+
+function load(key,fallback){
+ return JSON.parse(localStorage.getItem(key)||JSON.stringify(fallback));
+}
+function save(key,val){
+ localStorage.setItem(key,JSON.stringify(val));
+}
+
+function getScore(){
+ return load(SCORE_KEY,{fort:0,faible:0});
+}
+
+function updateScore(type){
+ let s=getScore();
+ s[type]++;
+ save(SCORE_KEY,s);
+}
+
+function addEmoji(block,e){
+ let em=load(EMOJI_KEY,{});
+ if(!em[block]) em[block]=[];
+ em[block].push(e);
+ save(EMOJI_KEY,em);
+}
+
+function getNotes(i){
+ let n=load(NOTES_KEY,{});
+ if(!n[i]) n[i]=["Faire exercice","Rester constant"];
+ return n[i];
+}
+
+function setStatus(block,v){
+ let s=load(STATE_KEY,{});
+ s[block]=v;
+ updateScore(v==="Fort"?"fort":"faible");
+ addEmoji(block,v==="Fort"?"✅":"❌");
+ save(STATE_KEY,s);
+ render();
+}
+
+function resetWeekEmojis(){
+ localStorage.removeItem(EMOJI_KEY);
+ render();
+}
+
+function resetAll(){
+ localStorage.clear();
+ render();
+}
+
+function addNoteUI(i){
+ let input=document.getElementById("input-"+i);
+ let val=input.value.trim();
+ if(!val) return;
+ let n=load(NOTES_KEY,{});
+ if(!n[i]) n[i]=[];
+ n[i].push(val);
+ save(NOTES_KEY,n);
+ render();
+}
+
+function deleteNote(btn){
+ let item=btn.parentElement;
+ let i=item.dataset.i;
+ let idx=item.dataset.idx;
+ let n=load(NOTES_KEY,{});
+ n[i].splice(idx,1);
+ save(NOTES_KEY,n);
+ render();
+}
+
+function render(){
+ let c=document.getElementById("blocks");
+ let score=getScore();
+ let emojis=load(EMOJI_KEY,{});
+ c.innerHTML="";
+
+ BLOCKS.forEach((b,i)=>{
+  let notes=getNotes(i);
+  let hist=emojis[b]||[];
+
+  let div=document.createElement("div");
+  div.className="card";
+
+  div.innerHTML=`
+  <div class="time">
+    <span>${b}</span>
+    <span>${hist.join(" ")}</span>
+  </div>
+
+  <div class="status-row">
+    <div class="status-box">
+      Fort <input type="checkbox" onchange="setStatus('${b}','Fort')">
+    </div>
+    <div class="status-box">
+      Faible <input type="checkbox" onchange="setStatus('${b}','Faible')">
+    </div>
+  </div>
+
+  <div class="notes">
+    ${notes.map((n,idx)=>`
+      <div class="note-item" data-i="${i}" data-idx="${idx}">
+        ${n}
+        <button onclick="deleteNote(this)">X</button>
+      </div>`).join("")}
+
+    <div class="note-input">
+      <input id="input-${i}">
+      <button onclick="addNoteUI(${i})">+</button>
+    </div>
+  </div>
+  `;
+
+  c.appendChild(div);
+ });
+
+ document.getElementById("score").innerHTML=
+ `🏆 Score : ✅ ${score.fort} - ❌ ${score.faible}`;
+}
+
+render();
+
+/* ACTIVER PWA */
+if ("serviceWorker" in navigator) {
+ navigator.serviceWorker.register("service-worker.js");
+}
+
+</script>
+
+</body>
+</html>
+```
